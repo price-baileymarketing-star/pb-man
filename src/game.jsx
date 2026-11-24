@@ -1,0 +1,344 @@
+const{useState,useEffect,useCallback,useRef}=React;
+const NEON={green:"#00C853",orange:"#FF6D00",purple:"#CC44FF",gray:"#90A4AE"};
+const YELLOW="#FFD300";
+const LN={green:"TAX FOR BUSINESS",orange:"OUTSOURCING",purple:"M&A ADVISORY",gray:"BUSINESS ADVISORY"};
+const ND=[
+{id:0,x:80,y:160},{id:1,x:210,y:160},{id:2,x:360,y:160},{id:3,x:510,y:160},{id:4,x:660,y:160},{id:5,x:820,y:160},
+{id:6,x:80,y:300},{id:7,x:210,y:300},{id:8,x:360,y:300},{id:9,x:510,y:300},{id:10,x:660,y:300},{id:11,x:820,y:300},
+{id:12,x:80,y:440},{id:13,x:210,y:440},{id:14,x:360,y:440},{id:15,x:510,y:440},{id:16,x:660,y:440},{id:17,x:820,y:440},
+{id:18,x:80,y:575},{id:19,x:210,y:575},{id:20,x:360,y:575},{id:21,x:510,y:575},{id:22,x:660,y:575},{id:23,x:820,y:575},
+{id:24,x:210,y:230},{id:25,x:360,y:230},{id:26,x:210,y:370},{id:27,x:360,y:370},
+{id:28,x:510,y:370},{id:29,x:660,y:370},{id:30,x:210,y:508},{id:31,x:510,y:508},{id:32,x:660,y:508},{id:33,x:510,y:230}
+];
+const ED=[
+[0,1,"green"],[1,2,"green"],[2,3,"green"],[3,4,"green"],[4,5,"green"],
+[6,7,"orange"],[7,8,"orange"],[8,9,"orange"],[9,10,"orange"],[10,11,"orange"],
+[12,13,"purple"],[13,14,"purple"],[14,15,"purple"],[15,16,"purple"],[16,17,"purple"],
+[18,19,"gray"],[19,20,"gray"],[20,21,"gray"],[21,22,"gray"],[22,23,"gray"],
+[1,24,"green"],[24,7,"orange"],[2,25,"green"],[25,8,"orange"],
+[3,33,"green"],[33,9,"orange"],[9,28,"orange"],[28,15,"purple"],
+[7,26,"orange"],[26,13,"purple"],[8,27,"orange"],[27,14,"purple"],
+[10,29,"orange"],[29,16,"purple"],[13,30,"purple"],[30,19,"gray"],
+[15,31,"purple"],[31,21,"gray"],[16,32,"purple"],[32,22,"gray"]
+];
+const SV=[
+{n:2,l:"CORPORATION TAX",z:"green",t:"COMPLIANCE UNLOCKED: Minimise liability & stay fully compliant!",pw:false},
+{n:4,l:"R&D TAX RELIEF",z:"green",t:"R&D RELIEF: Fueling your next build — up to 33p per £1!",pw:true},
+{n:3,l:"EOT",z:"green",t:"EOT UNLOCKED: Employee Ownership Trust — tax-efficient exit!",pw:false,eot:true},
+{n:5,l:"VGTR / VGEC",z:"green",t:"★ PRICE BAILEY POWER UP: 25.5% Cash Back on Core Dev Costs!",pw:false},
+{n:8,l:"PAYROLL",z:"orange",t:"PAYROLL SECURED: Accurate, compliant payroll every time.",pw:false},
+{n:10,l:"EMPLOYMENT LAW",z:"orange",t:"EMPLOYMENT LAW: Stay protected, stay compliant.",pw:false},
+{n:14,l:"VALUATIONS GROWTH",z:"purple",t:"VALUATIONS: Know your worth — grow with confidence.",pw:false},
+{n:16,l:"SHARE OPTIONS",z:"purple",t:"SHARE OPTIONS: Incentivise your team, retain top talent.",pw:false},
+{n:15,l:"EOT",z:"purple",t:"EOT: Employee Ownership Trust — rewarding your people.",pw:false,eot:true},
+{n:20,l:"FORECASTING & BUDGETING",z:"gray",t:"FORECASTING: See around corners — plan ahead with confidence.",pw:false},
+{n:22,l:"RAISING FUNDS",z:"gray",t:"RAISING FUNDS: We'll help you prepare a compelling case.",pw:false}
+];
+const GS=[1,9,19,13];
+const GD=[
+{color:NEON.orange,label:"TAX INVESTIGATION"},
+{color:"#FF69B4",label:"HIGH INFLATION"},
+{color:NEON.purple,label:"R&D ENQUIRY"},
+{color:"#FF3333",label:"EMPLOYERS NI"}
+];
+// Lead capture is handled by lib/screen-kit.js and lib/hubspot.js (see the two-screen setup at the end of this file).
+const LOGO="assets/pb-box-logo.jpg";
+const lc=k=>NEON[k]||"#fff";
+const ui="'Courier New',monospace";
+const mn="'Arial Black','Arial',sans-serif";
+
+function nb(id){return ED.flatMap(([a,b,l])=>a===id?[{id:b,line:l}]:b===id?[{id:a,line:l}]:[]);}
+function dr(f,t){const dx=ND[t].x-ND[f].x,dy=ND[t].y-ND[f].y;return Math.abs(dx)>Math.abs(dy)?(dx>0?"right":"left"):(dy>0?"down":"up");}
+function tp(n1,n2){
+  const{x:x1,y:y1}=n1,{x:x2,y:y2}=n2;
+  if(x1===x2||y1===y2)return`M${x1},${y1}L${x2},${y2}`;
+  const r=20,sx=x2>x1?1:-1,sy=y2>y1?1:-1,ax=Math.abs(x2-x1),ay=Math.abs(y2-y1);
+  if(ax>ay){const bx=x1+sx*ay;return`M${x1},${y1}L${bx-sx*r},${y1}Q${bx},${y1} ${bx},${y1+sy*r}L${x2},${y2}`;}
+  else{const by=y1+sy*ax;return`M${x1},${y1}L${x1},${by-sy*r}Q${x1},${by} ${x1+sx*r},${by}L${x2},${y2}`;}
+}
+function mkp(){
+  const p=[];
+  ED.forEach(([a,b,line],ei)=>{
+    const n1=ND[a],n2=ND[b],d=Math.hypot(n2.x-n1.x,n2.y-n1.y),s=Math.floor(d/28);
+    for(let i=1;i<s;i++){const t=i/s;p.push({id:`${ei}-${i}`,x:n1.x+(n2.x-n1.x)*t,y:n1.y+(n2.y-n1.y)*t,line,eaten:false});}
+  });return p;
+}
+function ma(){
+  try{
+    const c=new(window.AudioContext||window.webkitAudioContext)();
+    const p=fn=>{try{fn(c)}catch(e){}};
+    return{
+      resume:()=>{try{c.resume()}catch(e){}},
+      chomp:()=>p(c=>{const o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.setValueAtTime(520,c.currentTime);o.frequency.exponentialRampToValueAtTime(220,c.currentTime+.08);g.gain.setValueAtTime(.18,c.currentTime);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.1);o.start();o.stop(c.currentTime+.1)}),
+      powerUp:()=>p(c=>{[300,400,530,700,900,1200].forEach((f,i)=>{const o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.type="square";o.frequency.value=f;const t=c.currentTime+i*.09;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.15,t+.04);g.gain.linearRampToValueAtTime(0,t+.09);o.start(t);o.stop(t+.1)})}),
+      death:()=>p(c=>{const o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.type="sawtooth";o.frequency.setValueAtTime(440,c.currentTime);o.frequency.exponentialRampToValueAtTime(60,c.currentTime+.9);g.gain.setValueAtTime(.25,c.currentTime);g.gain.exponentialRampToValueAtTime(.001,c.currentTime+.9);o.start();o.stop(c.currentTime+.95)}),
+      node:()=>p(c=>{[600,900,1200].forEach((f,i)=>{const o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=f;const t=c.currentTime+i*.1;g.gain.setValueAtTime(.2,t);g.gain.exponentialRampToValueAtTime(.001,t+.12);o.start(t);o.stop(t+.13)})}),
+      shield:()=>p(c=>{[800,1000,1200,1000,800].forEach((f,i)=>{const o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.type="sine";o.frequency.value=f;const t=c.currentTime+i*.07;g.gain.setValueAtTime(.15,t);g.gain.linearRampToValueAtTime(0,t+.07);o.start(t);o.stop(t+.08)})})
+    };
+  }catch(e){return{resume:()=>{},chomp:()=>{},powerUp:()=>{},death:()=>{},node:()=>{},shield:()=>{}};}
+}
+
+function PBLogo({size=40}){
+  return <img src={LOGO} width={size} height={size} style={{display:"block",borderRadius:3,objectFit:"cover"}} alt="PB"/>;
+}
+
+function App(){
+  const[pn,setPn]=useState(0);
+  const[svcs,setSvcs]=useState(SV.map(s=>({...s,collected:false})));
+  const[pels,setPels]=useState(mkp);
+  const[score,setScore]=useState(0);
+  const[ghosts,setGhosts]=useState(GS.map((n,i)=>({...GD[i],node:n,scared:false})));
+  const[gs,setGs]=useState("idle");
+  const[mo,setMo]=useState(true);
+  const[face,setFace]=useState("right");
+  const[pu,setPu]=useState(false);
+  const[pop,setPop]=useState(null);
+  const[rm,setRm]=useState(false);
+  const[ve,setVe]=useState(new Set());
+  const au=useRef(null);
+  const pt=useRef(null);
+  const ppt=useRef(null);
+
+  useEffect(()=>{const t=setInterval(()=>setMo(m=>!m),200);return()=>clearInterval(t)},[]);
+
+  const begin=()=>{
+    au.current=ma();au.current.resume();setGs("playing");
+    setPn(0);setScore(0);setFace("right");
+    setSvcs(SV.map(s=>({...s,collected:false})));
+    setPels(mkp());setGhosts(GS.map((n,i)=>({...GD[i],node:n,scared:false})));
+    setPu(false);setRm(false);setPop(null);setVe(new Set());
+  };
+
+  const end=(won,sc,why)=>{
+    setGs(won?"won":"dead");
+    PBScreen.ended({sc:sc,ttl:won?"TAX POSITION: OPTIMISED":"GAME OVER",
+      msg:won?"You've unlocked your studio's full tax potential. Ready to play for real?":why+". Don't let the tax inspectors win in real life either."});
+  };
+  const showPop=txt=>{if(ppt.current)clearTimeout(ppt.current);setPop(txt);ppt.current=setTimeout(()=>setPop(null),2600);};
+
+  const move=useCallback(dir=>{
+    if(gs!=="playing"||PBScreen.paused)return;
+    const nbs=nb(pn);const cands=nbs.filter(n=>dr(pn,n.id)===dir);
+    if(!cands.length)return;
+    const tgt=cands[0];setFace(dir);
+    const ek=[Math.min(pn,tgt.id),Math.max(pn,tgt.id)].join("-");
+    setVe(prev=>new Set([...prev,ek]));setPn(tgt.id);
+    setPels(prev=>prev.map(p=>{
+      if(!p.eaten&&Math.hypot(p.x-ND[tgt.id].x,p.y-ND[tgt.id].y)<22){au.current?.chomp();setScore(s=>s+10);return{...p,eaten:true}}return p;
+    }));
+    setSvcs(prev=>prev.map(s=>{
+      if(s.n===tgt.id&&!s.collected){
+        const pts=s.pw?500:150;setScore(sc=>sc+pts);showPop(s.t);
+        if(s.pw){au.current?.powerUp();setPu(true);if(pt.current)clearTimeout(pt.current);setGhosts(g=>g.map(gh=>({...gh,scared:true})));pt.current=setTimeout(()=>{setPu(false);setGhosts(g=>g.map(gh=>({...gh,scared:false})))},8000);}
+        else{au.current?.node();}
+        return{...s,collected:true};
+      }return s;
+    }));
+  },[pn,gs]);
+
+  useEffect(()=>{
+    const h=e=>{if(window.PBGame&&window.PBGame.remote)return;const m={ArrowUp:"up",ArrowDown:"down",ArrowLeft:"left",ArrowRight:"right"};if(m[e.key]){e.preventDefault();move(m[e.key])}};
+    window.addEventListener("keydown",h);return()=>window.removeEventListener("keydown",h);
+  },[move]);
+
+  useEffect(()=>{if(gs!=="playing"&&gs!=="idle")return;const t=setInterval(()=>{if(PBScreen.paused)return;setGhosts(prev=>prev.map(g=>{const nbs=nb(g.node);return{...g,node:nbs[Math.floor(Math.random()*nbs.length)].id}}))},880);return()=>clearInterval(t)},[gs]);
+
+  useEffect(()=>{
+    if(gs!=="playing")return;
+    for(const g of ghosts){
+      if(g.node===pn){
+        if(pu){setScore(s=>s+300);au.current?.node();setGhosts(prev=>prev.map((gh,i)=>gh.node===g.node?{...GD[i],node:GS[i],scared:false}:gh));}
+        else if(g.label==="TAX INVESTIGATION"&&rm){au.current?.shield();showPop("🛡️ RISK MANAGED!");}
+        else{au.current?.death();setScore(sc=>{setTimeout(()=>end(false,sc,g.label+" chased you down"),100);return sc});}
+      }
+    }
+    if(svcs.every(s=>s.collected)){setScore(sc=>{setTimeout(()=>end(true,sc),100);return sc});}
+  },[pn,ghosts,pu,rm,svcs,gs]);
+
+  // Used by the two-screen setup at the bottom of this file
+  window.PBGame=Object.assign(window.PBGame||{},{begin:begin,move:move,score:score,pn:pn,gs:gs,
+    nodes:svcs.filter(s=>s.collected).length,total:SV.length,unlock:()=>{if(au.current)au.current.resume()}});
+  const W=940,H=660;
+  const DB=({dir,label})=>(
+    <button onPointerDown={e=>{e.preventDefault();move(dir)}}
+      style={{width:48,height:48,background:"#111",border:"2px solid #333",borderRadius:8,color:"#fff",fontSize:18,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",userSelect:"none",WebkitUserSelect:"none",touchAction:"none"}}>{label}</button>
+  );
+
+  return(
+    <div style={{background:"#000",minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",padding:"8px",fontFamily:ui,userSelect:"none",width:"100%",maxWidth:"100vw",overflow:"hidden"}}>
+      {/* HUD - responsive */}
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,width:"100%",maxWidth:W,flexWrap:"wrap",padding:"0 4px"}}>
+        <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
+          <div style={{width:28,height:28,borderRadius:3,overflow:"hidden",border:`1px solid ${NEON.green}`,boxShadow:`0 0 6px ${NEON.green}88`,flexShrink:0}}><PBLogo size={28}/></div>
+          <div style={{color:NEON.green,fontWeight:900,fontSize:14,letterSpacing:2,textShadow:`0 0 8px ${NEON.green}`}}>PB MAN</div>
+        </div>
+        <div style={{color:"#fff",fontSize:11,letterSpacing:1}}>SCORE: <span style={{color:NEON.green,fontWeight:700}}>{score}</span></div>
+        <div style={{color:"#aaa",fontSize:10}}>{svcs.filter(s=>s.collected).length}/{SV.length}</div>
+        {pu&&<div style={{color:"#000",background:NEON.green,padding:"1px 8px",borderRadius:4,fontWeight:900,fontSize:9,animation:"blink .4s step-end infinite"}}>★ POWER UP!</div>}
+      </div>
+
+      {/* Board - scales to fit */}
+      <div style={{position:"relative",width:"100%",maxWidth:W,background:"#000",borderRadius:12,border:"2px solid #222",overflow:"hidden"}}>
+        <svg viewBox={`0 0 ${W} ${H}`} style={{display:"block",width:"100%",height:"auto"}}>
+          <defs>
+            {["green","orange","purple","gray","pink","white"].map(k=>(
+              <filter key={k} id={`g-${k}`} x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="3.5" result="bl"/>
+                <feMerge><feMergeNode in="bl"/><feMergeNode in="bl"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+            ))}
+          </defs>
+          {/* Watermark */}
+          <image href={LOGO} x={W/2-30} y={H/2-30} width="60" height="60" opacity=".08"/>
+          {/* Zone labels */}
+          {[{y:160,l:"green"},{y:300,l:"orange"},{y:440,l:"purple"},{y:575,l:"gray"}].map(({y,l})=>(
+            <text key={l} x={22} y={y-14} fontSize={9} fill={lc(l)} fontFamily={ui} fontWeight="900" letterSpacing="2" opacity={.8} filter={`url(#g-${l})`}>{LN[l]}</text>
+          ))}
+          {/* Lines */}
+          {ED.map(([a,b,line],i)=>{
+            const d=tp(ND[a],ND[b]),col=lc(line),k=[Math.min(a,b),Math.max(a,b)].join("-"),vis=ve.has(k);
+            return(<g key={i}><path d={d} fill="none" stroke={col} strokeWidth={12} strokeOpacity={.12} strokeLinecap="round"/><path d={d} fill="none" stroke={col} strokeWidth={vis?2:4} strokeOpacity={vis?.2:.9} strokeLinecap="round" filter={vis?"none":`url(#g-${line})`}/></g>);
+          })}
+          {/* Pellets */}
+          {pels.map(p=>!p.eaten&&<circle key={p.id} cx={p.x} cy={p.y} r={3} fill={lc(p.line)} opacity={.8} filter={`url(#g-${p.line})`}/>)}
+          {/* Stations */}
+          {ND.map((n,i)=>{
+            const nl=[...new Set(ED.filter(([a,b])=>a===i||b===i).map(([,,l])=>l))];
+            return i>=24?(
+              <g key={i}><rect x={n.x-8} y={n.y-8} width={16} height={16} rx={2} fill="#000" stroke="#555" strokeWidth={1.5}/>{nl.map((l,li)=><line key={li} x1={n.x-5+li*5} y1={n.y-5} x2={n.x-5+li*5} y2={n.y+5} stroke={lc(l)} strokeWidth={2.5} strokeLinecap="round"/>)}</g>
+            ):<circle key={i} cx={n.x} cy={n.y} r={5} fill="#000" stroke={nl[0]?lc(nl[0]):"#444"} strokeWidth={2}/>;
+          })}
+          {/* Service nodes */}
+          {svcs.map((s,i)=>{
+            if(s.collected)return null;
+            const n=ND[s.n],col=lc(s.z),ip=s.pw,ie=s.eot;
+            const bw=ie?72:ip?108:96,bh=ie?32:ip?44:38,rx=8;
+            const words=s.l.split(" "),cs=Math.ceil(words.length/(words.length>4?3:2)),lines=[];
+            for(let j=0;j<words.length;j+=cs)lines.push(words.slice(j,j+cs).join(" "));
+            const lh=13,th=(lines.length-1)*lh;
+            if(ie){return(<g key={i}>
+              <rect x={n.x-bw/2} y={n.y-bh/2} width={bw} height={bh/2} rx={rx} fill={NEON.green} filter="url(#g-green)"/>
+              <rect x={n.x-bw/2} y={n.y} width={bw} height={bh/2} rx={0} fill={NEON.purple} filter="url(#g-purple)"/>
+              <rect x={n.x-bw/2} y={n.y+bh/2-rx} width={bw} height={rx} rx={rx} fill={NEON.purple}/>
+              <rect x={n.x-bw/2} y={n.y-bh/2+rx} width={bw} height={bh/2-rx} fill={NEON.green}/>
+              <rect x={n.x-bw/2} y={n.y} width={bw} height={bh/2-rx} fill={NEON.purple}/>
+              <text x={n.x} y={n.y+4} textAnchor="middle" dominantBaseline="middle" fill="#000" fontSize={11} fontWeight="900" fontFamily={mn}>EOT</text>
+              <text x={n.x+bw/2-8} y={n.y-bh/2+10} textAnchor="middle" fill="#000" fontSize={8}>★</text>
+            </g>)}
+            return(<g key={i}>
+              {ip&&<rect x={n.x-bw/2-6} y={n.y-bh/2-6} width={bw+12} height={bh+12} rx={rx+4} fill="none" stroke={col} strokeWidth={1.5} opacity={.35} filter={`url(#g-${s.z})`}/>}
+              <rect x={n.x-bw/2} y={n.y-bh/2} width={bw} height={bh} rx={rx} fill={col} stroke={col} strokeWidth={2.5} filter={`url(#g-${s.z})`}/>
+              <rect x={n.x-bw/2+2} y={n.y-bh/2+2} width={bw-4} height={bh-4} rx={rx-2} fill="none" stroke="rgba(0,0,0,.18)" strokeWidth={1}/>
+              {ip&&<text x={n.x+bw/2-8} y={n.y-bh/2+12} textAnchor="middle" fill="#000" fontSize={11} fontWeight="900">★</text>}
+              {lines.map((ln,li)=><text key={li} x={n.x} y={n.y-th/2+li*lh+4} textAnchor="middle" dominantBaseline="middle" fill="#000" fontSize={ip?10:9.5} fontWeight="900" fontFamily={mn} letterSpacing=".2">{ln}</text>)}
+            </g>);
+          })}
+          {/* Ghosts */}
+          {ghosts.map((g,i)=>{
+            const n=ND[g.node],col=g.scared?"#0044ff":g.color,gk=g.scared?"green":["orange","pink","purple","gray"][i];
+            return(<g key={i} filter={`url(#g-${gk})`}>
+              <ellipse cx={n.x} cy={n.y} rx={13} ry={15} fill={col} opacity={.92}/>
+              <rect x={n.x-13} y={n.y-4} width={26} height={10} fill={col} opacity={.92}/>
+              <path d={`M${n.x-13},${n.y+10} Q${n.x-9},${n.y+17} ${n.x-4},${n.y+10} Q${n.x+1},${n.y+17} ${n.x+6},${n.y+10} Q${n.x+10},${n.y+17} ${n.x+13},${n.y+10}`} fill={col}/>
+              <circle cx={n.x-4} cy={n.y-4} r={3} fill="white"/><circle cx={n.x+4} cy={n.y-4} r={3} fill="white"/>
+              <circle cx={n.x-4} cy={n.y-4} r={1.5} fill={g.scared?"#4488ff":"#111"}/><circle cx={n.x+4} cy={n.y-4} r={1.5} fill={g.scared?"#4488ff":"#111"}/>
+              <text x={n.x} y={n.y-20} textAnchor="middle" fontSize={6.5} fontWeight="900" fill={col} fontFamily={ui} filter={`url(#g-${gk})`}>{g.label}</text>
+            </g>);
+          })}
+          {/* Player */}
+          {(()=>{
+            const n=ND[pn],pc=pu?"#ff9900":NEON.green,ps=pu?"#cc6600":"#007a3d",bob=mo?-1.5:1.5,cx=n.x,cy=n.y+bob,s=v=>v*1.05;
+            return(<g filter="url(#g-white)" transform={`translate(${cx},${cy})`}>
+              {pu&&<circle cx={0} cy={0} r={28} fill={NEON.green} opacity={.15}/>}
+              <rect x={s(-18)} y={s(-10)} width={s(36)} height={s(20)} rx={s(9)} ry={s(9)} fill={pc} stroke={ps} strokeWidth={1.5}/>
+              <ellipse cx={s(-14)} cy={s(7)} rx={s(6)} ry={s(5)} fill={pc} stroke={ps} strokeWidth={1.2}/>
+              <ellipse cx={s(14)} cy={s(7)} rx={s(6)} ry={s(5)} fill={pc} stroke={ps} strokeWidth={1.2}/>
+              <line x1={0} y1={s(-8)} x2={0} y2={s(4)} stroke={ps} strokeWidth={1} opacity={.5}/>
+              <rect x={s(-17)} y={s(-3)} width={s(10)} height={s(4)} rx={1} fill="#000" opacity={.55}/>
+              <rect x={s(-14)} y={s(-6)} width={s(4)} height={s(10)} rx={1} fill="#000" opacity={.55}/>
+              <circle cx={s(11)} cy={s(-4)} r={s(2.2)} fill="#000" opacity={.55}/><circle cx={s(15)} cy={s(-1)} r={s(2.2)} fill="#000" opacity={.55}/>
+              <circle cx={s(11)} cy={s(2)} r={s(2.2)} fill="#000" opacity={.55}/><circle cx={s(7)} cy={s(-1)} r={s(2.2)} fill="#000" opacity={.55}/>
+              <rect x={s(-3)} y={s(-2)} width={s(2.5)} height={s(2)} rx={.8} fill="#000" opacity={.4}/>
+              <rect x={s(.5)} y={s(-2)} width={s(2.5)} height={s(2)} rx={.8} fill="#000" opacity={.4}/>
+              {face==="right"&&<polygon points={`${s(20)},0 ${s(16)},${s(-3)} ${s(16)},${s(3)}`} fill={ps} opacity={.7}/>}
+              {face==="left"&&<polygon points={`${s(-20)},0 ${s(-16)},${s(-3)} ${s(-16)},${s(3)}`} fill={ps} opacity={.7}/>}
+              {face==="up"&&<polygon points={`0,${s(-14)} ${s(-3)},${s(-10)} ${s(3)},${s(-10)}`} fill={ps} opacity={.7}/>}
+              {face==="down"&&<polygon points={`0,${s(14)} ${s(-3)},${s(10)} ${s(3)},${s(10)}`} fill={ps} opacity={.7}/>}
+            </g>);
+          })()}
+        </svg>
+
+        {/* Popup */}
+        {pop&&<div style={{position:"absolute",top:8,left:"50%",transform:"translateX(-50%)",background:"#000",color:NEON.green,border:`2px solid ${NEON.green}`,borderRadius:8,padding:"8px 16px",fontSize:11,fontWeight:900,letterSpacing:1,boxShadow:`0 0 20px ${NEON.green}88`,maxWidth:"90%",textAlign:"center",fontFamily:ui,zIndex:20}}>{pop}</div>}
+
+        {/* Nodes checklist - bottom right */}
+        <div style={{position:"absolute",bottom:8,right:8,background:"rgba(0,0,0,.9)",border:"1px solid #333",borderRadius:8,padding:"6px 10px",maxWidth:155}}>
+          <div style={{fontSize:8,color:"#666",marginBottom:4,letterSpacing:2,fontFamily:ui}}>NODES COLLECTED</div>
+          {svcs.map((s,i)=>(
+            <div key={i} style={{display:"flex",alignItems:"center",gap:5,marginBottom:2}}>
+              <div style={{width:6,height:6,borderRadius:"50%",background:lc(s.z),opacity:s.collected?1:.2,boxShadow:s.collected?`0 0 4px ${lc(s.z)}`:"none",flexShrink:0}}/>
+              <span style={{fontSize:8,color:s.collected?lc(s.z):"#444",fontWeight:s.collected?700:400,fontFamily:ui}}>{s.l.length>16?s.l.slice(0,15)+"…":s.l}</span>
+              {s.collected&&<span style={{color:"#00ff88",fontSize:8,marginLeft:"auto"}}>✓</span>}
+              {s.eot&&!s.collected&&<span style={{color:NEON.green,fontSize:7,marginLeft:"auto"}}>EOT</span>}
+            </div>
+          ))}
+        </div>
+
+        {/* Legend - bottom left */}
+        <div style={{position:"absolute",bottom:8,left:8,background:"rgba(0,0,0,.85)",border:"1px solid #222",borderRadius:6,padding:"5px 10px"}}>
+          {Object.entries(NEON).map(([k,c])=>(
+            <div key={k} style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
+              <div style={{width:20,height:3,borderRadius:2,background:c,boxShadow:`0 0 4px ${c}`}}/>
+              <span style={{fontSize:8,color:c,fontFamily:ui,fontWeight:700,letterSpacing:1}}>{LN[k]}</span>
+            </div>
+          ))}
+          <div style={{display:"flex",alignItems:"center",gap:6,marginTop:2}}>
+            <span style={{fontSize:9}}>⭐</span><span style={{fontSize:8,color:"#aaa",fontFamily:ui}}>R&D = Power Up</span>
+          </div>
+        </div>
+
+      </div>
+
+      {/* D-Pad */}
+      <div className="pbdpad" style={{marginTop:10,display:"grid",gridTemplateColumns:"48px 48px 48px",gridTemplateRows:"48px 48px 48px",gap:3}}>
+        <div/><DB dir="up" label="▲"/><div/>
+        <DB dir="left" label="◀"/>
+        <div style={{width:48,height:48,background:"#0a0a0a",borderRadius:8,border:"1px solid #1a1a1a"}}/>
+        <DB dir="right" label="▶"/>
+        <div/><DB dir="down" label="▼"/><div/>
+      </div>
+      <div className="pbdpad" style={{marginTop:4,color:"#333",fontSize:9,fontFamily:ui,letterSpacing:1}}>KEYBOARD ← ↑ ↓ → · D-PAD FOR MOBILE</div>
+    </div>
+  );
+}
+
+const root=ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App/>);
+
+/* ---- Two-screen setup: QR code, details form, phone controller, end screen ----
+   Event name and consent wording live in lib/hubspot.js. Timings live in lib/screen-kit.js. */
+PBScreen.init({
+  logo:'assets/pb-box-logo.jpg',
+  title:'PB Man',
+  tagline:'The Price Bailey arcade game',
+  blurb:'Collect all the services. Outrun the risks.',
+  titleExtraHtml:'<p>1. Move along the lines. Each move eats the dots on the way.</p>'+
+    '<p>2. Reach every <b>service node</b> to collect it. Collect all of them to win.</p>'+
+    '<p>3. Grab the <b>R&amp;D star</b> for a power up, then catch the risks for bonus points.</p>'+
+    '<p>4. If a risk catches you, the game ends.</p>',
+  hint:'Steer from your phone, or play here with the arrow keys or the on-screen pad.',
+  scoreLabel:'Score',
+  theme:{bg1:'#000000',bg2:'#0b1a10',text:'#ffffff',dim:'#8aa595',accent:'#00C853',accent2:'#FFD300',warn:'#FF3333',
+         btnText:'#00130a',font:'"Courier New", monospace',titleBg:'rgba(0,0,0,.90)'},
+  titleDrift:true,
+  start:function(who){
+    window.PBGame.remote=(who==='phone');
+    document.body.classList.toggle('pb-remote',who==='phone');   // hide the on-screen pad when a phone is playing
+    window.PBGame.begin();
+  },
+  hud:function(){var g=window.PBGame;return{sc:g.score,ln:'Services '+g.nodes+' of '+g.total};},
+  press:function(k){window.PBGame.move(k);},                      // phone pad: up, down, left, right
+  release:function(){},
+  pause:function(){},
+  unlockAudio:function(){if(window.PBGame&&window.PBGame.unlock)window.PBGame.unlock();}
+});

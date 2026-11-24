@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#000000">
+<title>Controller | PB Man | Price Bailey</title>
+<link rel="icon" href="../assets/pb-box-logo.jpg">
+<style>
+  /* ---------- Brand colours (keep identical to the big screen page) ---------- */
+  :root {
+    --pb-teal: #007a3d;      /* button fill */
+    --pb-teal-2: #00C853;        /* accent / borders */
+    --pb-yellow: #FFD300;          /* highlights */
+    --pb-red: #b70b4a;
+    --bg-1: #000000;
+    --bg-2: #0b1a10;
+    --text: #ffffff;
+    --text-dim: #8aa595;
+    --btn-text: #00130a;
+    --err-on-dark: #ff9db8;     /* lighter tint of the brand red, readable on navy */
+    --safe-b: env(safe-area-inset-bottom, 0px);
+    --safe-t: env(safe-area-inset-top, 0px);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; }
+  html, body { width: 100%; height: 100%; background: var(--bg-1); color: var(--text);
+    font-family: "Courier New", monospace; overscroll-behavior: none; }
+  body { display: flex; flex-direction: column; background: radial-gradient(ellipse at top, var(--bg-2) 0%, var(--bg-1) 70%); }
+
+  /* ---------- Top bar ---------- */
+  header { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: calc(10px + var(--safe-t)) 16px 10px; border-bottom: 1px solid rgba(39,186,164,0.25); }
+  header img { height: 34px; width: auto; display: block; border-radius: 3px; }
+  .chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 999px; font-size: 14px; font-weight: 600;
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.2); }
+  .chip .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--pb-yellow); }
+  .chip.ok { border-color: var(--pb-teal-2); }
+  .chip.ok .dot { background: var(--pb-teal-2); }
+  .chip.bad { border-color: var(--err-on-dark); }
+  .chip.bad .dot { background: var(--err-on-dark); border-radius: 2px; }   /* square, so it is not colour alone */
+
+  main { flex: 1 1 auto; position: relative; min-height: 0; }
+  .screen { position: absolute; inset: 0; display: none; flex-direction: column; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    padding: 18px 18px calc(18px + var(--safe-b)); }
+  .screen.active { display: flex; }
+  .screen > .inner { margin: auto 0; width: 100%; max-width: 520px; align-self: center; }
+
+  h1 { font-size: 26px; font-weight: 600; line-height: 1.2; margin-bottom: 6px; }
+  h1 .brand { color: var(--pb-teal-2); }
+  .lead { color: var(--text-dim); font-size: 16px; line-height: 1.5; margin-bottom: 16px; }
+
+  /* ---------- Form ---------- */
+  .row { display: flex; gap: 10px; }
+  .row .field { flex: 1 1 0; min-width: 0; }
+  .field { margin-bottom: 12px; }
+  label { display: block; font-size: 15px; font-weight: 600; margin-bottom: 5px; }
+  label .opt { font-weight: 400; color: var(--text-dim); }
+  input[type=text], input[type=email], input[type=tel] {
+    width: 100%; min-height: 48px; padding: 10px 12px; font-size: 16px;     /* 16px stops iOS zooming in */
+    color: #fff; background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.28); border-radius: 8px; }
+  input:focus-visible, button:focus-visible, .pad:focus-visible { outline: 3px solid var(--pb-yellow); outline-offset: 2px; }
+  input[aria-invalid=true] { border-color: var(--err-on-dark); }
+  .err { display: none; margin-top: 4px; font-size: 14px; color: var(--err-on-dark); }
+  .err.show { display: block; }
+  .err::before { content: '! '; font-weight: 700; }
+  .consent { display: flex; gap: 12px; align-items: flex-start; margin: 4px 0 10px; }
+  .consent input { flex: 0 0 auto; width: 26px; height: 26px; margin-top: 1px; accent-color: var(--pb-teal-2); }
+  .consent label { font-weight: 400; margin: 0; font-size: 15px; line-height: 1.4; }
+  .notice { font-size: 13px; color: var(--text-dim); line-height: 1.45; margin-bottom: 16px; }
+  .notice a { color: var(--pb-teal-2); }
+
+  .btn { display: block; width: 100%; min-height: 54px; padding: 14px 20px; font-size: 18px; font-weight: 600; letter-spacing: 0.3px;
+    color: #fff; background: var(--pb-teal); border: 2px solid var(--pb-teal-2); border-radius: 10px; cursor: pointer; }
+  .btn:active { transform: scale(0.98); }
+  .btn[disabled] { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.2); color: rgba(255,255,255,0.55); cursor: not-allowed; }
+  .btn.secondary { background: transparent; border-color: rgba(255,255,255,0.35); margin-top: 12px; }
+  .hint { text-align: center; font-size: 14px; color: var(--text-dim); margin-top: 10px; min-height: 20px; }
+
+  /* ---------- Play screen ---------- */
+  #sPlay { padding: 0; }
+  .hud { flex: 0 0 auto; display: flex; justify-content: space-between; align-items: flex-end; padding: 12px 18px; gap: 12px; }
+  .hud .k { font-size: 12px; letter-spacing: 1.5px; color: var(--text-dim); text-transform: uppercase; }
+  .hud .v { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .hud .v.gold { color: #ffd700; }
+  .lives { display: flex; gap: 6px; font-size: 22px; color: var(--pb-teal-2); }
+  .lives span.off { opacity: 0.25; }
+  .hud .hln { font-size: 16px; font-weight: 600; text-align: right; color: var(--text); max-width: 55%; line-height: 1.3; }
+  .padwrap { flex: 1 1 auto; display: flex; flex-direction: column; padding: 0 12px 12px; min-height: 0; position: relative; }
+  .padarea { flex: 1 1 auto; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+  .prow { display: flex; gap: 10px; min-height: 0; }
+  .pbtn { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-width: 0;
+    color: var(--text); background: color-mix(in srgb, var(--pb-teal) 55%, transparent); border: 3px solid var(--pb-teal-2); border-radius: 16px;
+    font: inherit; touch-action: none; user-select: none; -webkit-user-select: none; cursor: pointer; padding: 6px; }
+  .pbtn .big { font-size: clamp(30px, 11vw, 64px); font-weight: 800; line-height: 1; }
+  .pbtn .sub { font-size: clamp(12px, 3.4vw, 17px); letter-spacing: 1.2px; text-transform: uppercase; color: var(--text-dim); }
+  .prow.many .big { font-size: clamp(20px, 6.2vw, 34px); overflow-wrap: anywhere; }
+  .prow.many .sub { font-size: clamp(11px, 3vw, 14px); }
+  .pbtn.held, .pbtn.flash { background: var(--pb-teal-2); color: var(--btn-text); }
+  .pbtn.held .sub, .pbtn.flash .sub { color: var(--btn-text); }
+  .pbtn.alt { border-color: var(--pb-yellow); background: color-mix(in srgb, var(--pb-yellow) 22%, transparent); }
+  .pbtn.alt.held, .pbtn.alt.flash { background: var(--pb-yellow); }
+  .pbtn.bad { border-color: #ff9db8; background: rgba(183, 11, 74, 0.35); }
+  .pbtn.bad.held, .pbtn.bad.flash { background: #ff9db8; color: #1a0610; }
+  .banner { position: absolute; left: 12px; right: 12px; top: 8px; z-index: 5; display: none; padding: 10px 14px; border-radius: 10px; font-size: 15px; line-height: 1.4;
+    background: rgba(10,17,40,0.95); border: 2px solid var(--pb-yellow); }
+  .banner.show { display: block; }
+
+  /* ---------- End and thanks ---------- */
+  .score { font-size: 54px; font-weight: 800; color: #ffd700; margin: 10px 0 6px; font-variant-numeric: tabular-nums; text-shadow: 0 0 24px rgba(255,215,0,0.4); }
+  .perf { font-size: 18px; line-height: 1.45; margin-bottom: 18px; }
+  .save { font-size: 16px; min-height: 24px; margin-bottom: 14px; }
+  .save.ok { color: var(--pb-teal-2); }
+  .save.fail { color: var(--err-on-dark); }
+  .center { text-align: center; }
+  .bigicon { font-size: 54px; margin-bottom: 8px; }
+
+  #dbg { display: none; position: fixed; left: 0; right: 0; bottom: 0; max-height: 34vh; overflow: auto; z-index: 99; padding: 8px 10px;
+    background: rgba(0,0,0,0.9); color: #9ff; font: 11px/1.35 monospace; white-space: pre-wrap; word-break: break-all; }
+  #dbg.on { display: block; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+</style>
+</head>
+<body>
+
+<header>
+  <img src="../assets/pb-box-logo.jpg" alt="Price Bailey">
+  <div class="chip" id="chip" role="status" aria-live="polite"><span class="dot"></span><span id="chipText">Connecting</span></div>
+</header>
+
+<main>
+  <!-- 1. Details form (always first) -->
+  <section class="screen active" id="sForm" aria-labelledby="formTitle">
+    <div class="inner">
+      <h1 id="formTitle">PB <span class="brand">Man</span></h1>
+      <p class="lead" id="formLead">Enter your details to play. Your score goes on the big screen.</p>
+      <form id="form" novalidate autocomplete="on">
+        <div class="row">
+          <div class="field">
+            <label for="firstname">First name</label>
+            <input type="text" id="firstname" name="firstname" autocomplete="given-name" autocapitalize="words" required aria-describedby="e_firstname">
+            <div class="err" id="e_firstname"></div>
+          </div>
+          <div class="field">
+            <label for="lastname">Last name</label>
+            <input type="text" id="lastname" name="lastname" autocomplete="family-name" autocapitalize="words" required aria-describedby="e_lastname">
+            <div class="err" id="e_lastname"></div>
+          </div>
+        </div>
+        <div class="field">
+          <label for="email">Business email</label>
+          <input type="email" id="email" name="email" autocomplete="email" inputmode="email" autocapitalize="off" required aria-describedby="e_email">
+          <div class="err" id="e_email"></div>
+        </div>
+        <div class="field">
+          <label for="company">Organisation</label>
+          <input type="text" id="company" name="company" autocomplete="organization" autocapitalize="words" required aria-describedby="e_company">
+          <div class="err" id="e_company"></div>
+        </div>
+        <div class="field">
+          <label for="mobile">Mobile number <span class="opt">(optional)</span></label>
+          <input type="tel" id="mobile" name="mobile" autocomplete="tel" inputmode="tel" aria-describedby="e_mobile">
+          <div class="err" id="e_mobile"></div>
+        </div>
+        <div class="consent">
+          <input type="checkbox" id="consent" name="consent">
+          <label for="consent" id="consentLabel"></label>
+        </div>
+        <p class="notice" id="notice"></p>
+        <button type="submit" class="btn" id="startBtn" disabled>Connecting</button>
+        <p class="hint" id="startHint" aria-live="polite"></p>
+      </form>
+    </div>
+  </section>
+
+  <!-- 2. Play: buttons come from PADS in the settings block -->
+  <section class="screen" id="sPlay" aria-label="Game controls">
+    <div class="hud">
+      <div><div class="k" id="hLabel"></div><div class="v gold" id="hScore">0</div></div>
+      <div class="hln" id="hLn" aria-live="off"></div>
+    </div>
+    <div class="padwrap">
+      <div class="banner" id="playBanner" role="status" aria-live="polite"></div>
+      <div class="padarea" id="padArea"></div>
+    </div>
+  </section>
+
+  <!-- 3. End screen -->
+  <section class="screen" id="sEnd" aria-labelledby="endTitle">
+    <div class="inner center">
+      <h1 id="endTitle">Game over</h1>
+      <div class="k" style="color:var(--text-dim);letter-spacing:1.5px;text-transform:uppercase;font-size:13px">Score</div>
+      <div class="score" id="endScore">0</div>
+      <p class="perf" id="endPerf"></p>
+      <p class="save" id="saveMsg" role="status" aria-live="polite"></p>
+      <button type="button" class="btn secondary" id="retryBtn" style="display:none;margin-top:0;margin-bottom:12px">Try saving again</button>
+      <button type="button" class="btn" id="newBtn">New game</button>
+    </div>
+  </section>
+
+  <!-- 4. Thank you -->
+  <section class="screen" id="sThanks" aria-labelledby="thanksTitle">
+    <div class="inner center">
+      <div class="bigicon" aria-hidden="true">&#10003;</div>
+      <h1 id="thanksTitle">Thanks for playing</h1>
+      <p class="lead">The next player can scan the new QR code on the big screen. You can close this page.</p>
+    </div>
+  </section>
+
+  <!-- Shown when the address has no room code -->
+  <section class="screen" id="sNoRoom">
+    <div class="inner center">
+      <h1>Scan the QR code</h1>
+      <p class="lead">Use your phone camera to scan the QR code on the big screen. It opens this page with the right game.</p>
+    </div>
+  </section>
+</main>
+
+<pre id="dbg" aria-hidden="true"></pre>
+
+<script src="../lib/mqtt.min.js"></script>
+<script src="../lib/link.js"></script>
+<script src="../lib/hubspot.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* ===================== SETTINGS (change these, nothing else) ===================== */
+  var HOLD_RESEND_MS = 150;       // while a button is held the phone says so this often (a lost "release" cannot stick)
+  var SCORE_LABEL = "Score";
+  var SCORE_FORMAT = "plain";          // 'gbp' shows 1,200 as £1,200, 'plain' as 1,200
+  var START_PAD = "play";
+  /* Buttons. kind: 'hold' stays pressed while the finger is down, 'tap' fires once per touch.
+     keys lists keyboard keys for desk testing. cls: '', 'alt' (highlight) or 'bad' (red). */
+  var PADS = {
+  "play": {
+    "rows": [
+      {
+        "h": 1,
+        "btns": [
+          {
+            "k": "up",
+            "label": "\u25b2",
+            "sub": "up",
+            "kind": "tap",
+            "keys": [
+              "ArrowUp",
+              "w"
+            ]
+          }
+        ]
+      },
+      {
+        "h": 1.2,
+        "btns": [
+          {
+            "k": "left",
+            "label": "\u25c0",
+            "sub": "left",
+            "kind": "tap",
+            "keys": [
+              "ArrowLeft",
+              "a"
+            ]
+          },
+          {
+            "k": "right",
+            "label": "\u25b6",
+            "sub": "right",
+            "kind": "tap",
+            "keys": [
+              "ArrowRight",
+              "d"
+            ]
+          }
+        ]
+      },
+      {
+        "h": 1,
+        "btns": [
+          {
+            "k": "down",
+            "label": "\u25bc",
+            "sub": "down",
+            "kind": "tap",
+            "keys": [
+              "ArrowDown",
+              "s"
+            ]
+          }
+        ]
+      }
+    ]
+  }
+};
+  var START_RESEND_MS = 500;      // the start message repeats until the big screen confirms
+  var START_RESEND_MAX = 10;
+  var NEWGAME_RESEND_MS = 350;
+  var SAVE_RETRY_AFTER_MS = 3000; // one automatic retry if the final save fails
+  /* ================================================================================ */
+
+  function $(id) { return document.getElementById(id); }
+  var params = new URLSearchParams(location.search);
+  var DEBUG = params.has('debug');
+  var room = PBLink.cleanRoom(params.get('room'));
+  var cid = Math.random().toString(36).slice(2, 10);   // who this phone is, for this page load only
+
+  // Personal details live in this variable only. Not in storage, not in the address, not on the big screen.
+  var details = null;
+
+  var phase = 'form';            // form | play | end | thanks
+  var link = null;
+  var linkStatus = { net: 'connecting', peer: 'none' };
+  var screenState = null;        // last 'st' message from the big screen
+  var startSent = 0, startTimer = null;
+  var endHandled = false;
+  var padName = '';
+  var wakeLock = null;
+
+  /* ---------------------------- Debug panel ---------------------------- */
+  function dbg(text) {
+    if (!DEBUG) return;
+    var el = $('dbg');
+    el.classList.add('on');
+    el.textContent = (new Date().toLocaleTimeString('en-GB') + '  ' + text + '\n' + el.textContent).slice(0, 6000);
+  }
+  PBHubSpot.onDebug = dbg;
+
+  /* ---------------------------- Screens ---------------------------- */
+  function show(name) {
+    phase = name;
+    ['sForm', 'sPlay', 'sEnd', 'sThanks', 'sNoRoom'].forEach(function (id) { $(id).classList.remove('active'); });
+    $({ form: 'sForm', play: 'sPlay', end: 'sEnd', thanks: 'sThanks', noroom: 'sNoRoom' }[name]).classList.add('active');
+  }
+
+  /* ---------------------------- Connection state ---------------------------- */
+  // One word for where we are: connecting | connected | notfound | offline | lost | busy | busyScreen | finished
+  function connState() {
+    var p = linkStatus.peer, n = linkStatus.net;
+    if (p === 'up') {
+      if (screenState) {
+        var mine = screenState.ctl === cid;
+        if (!mine && screenState.ctl) return 'busy';
+        if (!mine && screenState.by === 'screen' && screenState.s === 'playing') return 'busyScreen';
+        if (!mine && screenState.s === 'end') return 'finished';
+      }
+      return 'connected';
+    }
+    if (p === 'lost') return 'lost';
+    if (n === 'offline') return 'offline';
+    if (p === 'notfound') return 'notfound';
+    return 'connecting';
+  }
+
+  var CHIP = {
+    connecting: ['Connecting', ''], connected: ['Connected', 'ok'], notfound: ['Game not found', 'bad'], offline: ['No internet', 'bad'],
+    lost: ['Connection lost', 'bad'], busy: ['Game in use', 'bad'], busyScreen: ['Game in use', 'bad'], finished: ['Game finished', 'bad']
+  };
+  var LEAD = {
+    connecting: 'Looking for the game. You can fill in your details while this connects.',
+    connected: 'Enter your details to play. Your score goes on the big screen.',
+    notfound: 'We cannot find this game. Check you scanned the QR code on the big screen, or scan it again.',
+    offline: 'Your phone has no internet connection. Check your signal or Wi-Fi.',
+    lost: 'The connection dropped. We keep trying. If the big screen shows a new QR code, scan that instead.',
+    busy: 'Someone else is already playing this game. Please wait for the next QR code.',
+    busyScreen: 'A game is in progress on the big screen. Scan the new QR code when it appears.',
+    finished: 'This round has just finished. Scan the new QR code on the big screen.'
+  };
+
+  var lastForm = null;
+  function refreshConn() {
+    var cs = connState();
+    var chip = $('chip'), c = CHIP[cs];
+    $('chipText').textContent = c[0];
+    chip.className = 'chip ' + c[1];
+    if (phase === 'form') {
+      $('formLead').textContent = LEAD[cs];
+      updateStartButton(cs);
+    }
+    if (phase === 'play') {
+      var b = $('playBanner');
+      if (cs === 'connected') b.classList.remove('show');
+      else {
+        b.textContent = (cs === 'offline' ? 'No internet. ' : 'Connection lost. ') + 'Trying again. If the big screen has a new QR code, scan it.';
+        b.classList.add('show');
+      }
+    }
+    dbg('conn ' + cs + ' net=' + linkStatus.net + ' peer=' + linkStatus.peer);
+  }
+
+  /* ---------------------------- Form ---------------------------- */
+  var FIELDS = ['firstname', 'lastname', 'email', 'company', 'mobile'];
+  function readForm() {
+    return {
+      firstname: $('firstname').value, lastname: $('lastname').value, email: $('email').value,
+      company: $('company').value, mobile: $('mobile').value, consent: $('consent').checked
+    };
+  }
+  function fillForm(d) {
+    if (!d) return;
+    $('firstname').value = d.firstname; $('lastname').value = d.lastname; $('email').value = d.email;
+    $('company').value = d.company; $('mobile').value = d.mobile; $('consent').checked = d.consent === true;
+  }
+  function showErrors(errors, onlyTouched) {
+    FIELDS.forEach(function (f) {
+      var msg = errors[f];
+      var show = msg && (!onlyTouched || touched[f]);
+      var el = $('e_' + f);
+      el.textContent = show ? msg : '';
+      el.classList.toggle('show', !!show);
+      $(f).setAttribute('aria-invalid', show ? 'true' : 'false');
+    });
+  }
+  var touched = {};
+  function updateStartButton(cs) {
+    cs = cs || connState();
+    var v = PBHubSpot.validate(readForm());
+    var btn = $('startBtn'), hint = $('startHint');
+    var ready = v.ok && cs === 'connected';
+    btn.disabled = !ready;
+    if (cs !== 'connected') { btn.textContent = cs === 'connecting' ? 'Connecting' : 'Cannot start yet'; hint.textContent = ''; }
+    else if (!v.ok) { btn.textContent = 'Start game'; hint.textContent = 'Complete the required fields to start.'; }
+    else { btn.textContent = 'Start game'; hint.textContent = ''; }
+  }
+
+  FIELDS.concat(['consent']).forEach(function (f) {
+    var el = $(f);
+    el.addEventListener('input', function () { updateStartButton(); if (touched[f]) showErrors(PBHubSpot.validate(readForm()).errors, true); });
+    el.addEventListener('change', function () { updateStartButton(); });
+    el.addEventListener('blur', function () { touched[f] = true; showErrors(PBHubSpot.validate(readForm()).errors, true); });
+  });
+
+  // Wording comes from lib/hubspot.js so both screens always match
+  $('consentLabel').textContent = PBHubSpot.SETTINGS.CONSENT_TEXT;
+  (function () {
+    var n = $('notice');
+    n.textContent = PBHubSpot.SETTINGS.PRIVACY_NOTICE + ' ';
+    if (PBHubSpot.SETTINGS.PRIVACY_URL) {
+      var a = document.createElement('a');
+      a.href = PBHubSpot.SETTINGS.PRIVACY_URL; a.target = '_blank'; a.rel = 'noopener'; a.textContent = 'Privacy notice';
+      n.appendChild(a);
+    }
+  })();
+
+  $('form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var v = PBHubSpot.validate(readForm());
+    FIELDS.forEach(function (f) { touched[f] = true; });
+    showErrors(v.errors, false);
+    if (!v.ok || connState() !== 'connected') return;
+    startGame(v.details);
+  });
+
+  /* ---------------------------- Start ---------------------------- */
+  function startGame(d) {
+    details = d;                                              // memory only
+    // The lead is kept even if the game is abandoned, so send details now.
+    PBHubSpot.submit(details, { label: 'start' });
+    // Clear the form on the page. The details now live only in the variable above.
+    $('form').reset();
+    touched = {};
+    showErrors({}, false);
+    endHandled = false;
+    $('hLabel').textContent = SCORE_LABEL;
+    $('hScore').textContent = money(0);
+    $('hLn').textContent = '';
+    heldKeys = {}; tapCount = {};
+    show('play');
+    buildPad(START_PAD);
+    requestWake();
+
+    startSent = 0;
+    clearInterval(startTimer);
+    function sendStart() {
+      if (screenState && screenState.s === 'playing' && screenState.ctl === cid) { clearInterval(startTimer); return; }
+      if (startSent >= START_RESEND_MAX) {
+        clearInterval(startTimer);
+        // The big screen never confirmed. Put the details back so the player does not retype them.
+        show('form');
+        fillForm(details);
+        refreshConn();
+        $('formLead').textContent = 'The game did not start. Check your connection and press start again.';
+        return;
+      }
+      startSent++;
+      link.send({ t: 'start', c: cid, tp: {} });
+    }
+    sendStart();
+    startTimer = setInterval(sendStart, START_RESEND_MS);
+  }
+
+  /* ---------------------------- Buttons ---------------------------- */
+  var heldKeys = {}, tapCount = {}, resendTimer = null;
+  var keyMap = {};                                          // keyboard key -> button, for desk testing
+
+  function money(n) {
+    n = Math.floor(n || 0);
+    return (SCORE_FORMAT === 'gbp' ? '£' : '') + n.toLocaleString('en-GB');
+  }
+  function heldList() { return Object.keys(heldKeys).filter(function (k) { return heldKeys[k]; }); }
+  // One message says everything: which buttons are held now, and how many taps there have been
+  function sendInput() { if (link && phase === 'play') link.send({ t: 'in', c: cid, h: heldList(), tp: tapCount }); }
+  function keepResending() {
+    if (heldList().length && !resendTimer) resendTimer = setInterval(function () {
+      if (!heldList().length) { clearInterval(resendTimer); resendTimer = null; return; }
+      sendInput();
+    }, HOLD_RESEND_MS);
+  }
+  function press(b, el) {
+    if (b.kind === 'tap') {
+      tapCount[b.k] = (tapCount[b.k] || 0) + 1;
+      el.classList.add('flash'); setTimeout(function () { el.classList.remove('flash'); }, 120);
+    } else { heldKeys[b.k] = true; el.classList.add('held'); keepResending(); }
+    if (navigator.vibrate) navigator.vibrate(8);
+    sendInput();
+  }
+  function release(b, el) {
+    if (b.kind === 'tap') return;
+    if (heldKeys[b.k]) { heldKeys[b.k] = false; el.classList.remove('held'); sendInput(); }
+  }
+  function releaseAllButtons() {
+    heldKeys = {};
+    Array.prototype.forEach.call(document.querySelectorAll('.pbtn.held'), function (e) { e.classList.remove('held'); });
+    sendInput();
+  }
+
+  function buildPad(name) {
+    if (!PADS[name]) name = START_PAD;
+    padName = name;
+    var area = $('padArea'); area.innerHTML = ''; keyMap = {};
+    PADS[name].rows.forEach(function (row) {
+      var r = document.createElement('div'); r.className = 'prow' + (row.btns.length > 2 ? ' many' : ''); r.style.flex = String(row.h || 1) + ' 1 0';
+      row.btns.forEach(function (b) {
+        var el = document.createElement('button'); el.type = 'button';
+        el.className = 'pbtn' + (b.cls ? ' ' + b.cls : ''); el.style.flex = String(b.w || 1) + ' 1 0';
+        el.setAttribute('aria-label', b.aria || b.sub || b.label);
+        el.setAttribute('data-k', b.k);
+        el.innerHTML = '<span class="big">' + b.label + '</span>' + (b.sub ? '<span class="sub">' + b.sub + '</span>' : '');
+        el.addEventListener('pointerdown', function (e) { e.preventDefault(); try { el.setPointerCapture(e.pointerId); } catch (x) {} press(b, el); });
+        el.addEventListener('pointerup', function () { release(b, el); });
+        el.addEventListener('pointercancel', function () { release(b, el); });
+        el.addEventListener('lostpointercapture', function () { release(b, el); });
+        el.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+        (b.keys || []).forEach(function (k) { keyMap[k] = { b: b, el: el }; });
+        r.appendChild(el);
+      });
+      area.appendChild(r);
+    });
+  }
+  // Keyboard on a laptop: handy for the two-tab desk test
+  document.addEventListener('keydown', function (e) {
+    if (phase !== 'play' || e.repeat) return;
+    var h = keyMap[e.key]; if (h) { press(h.b, h.el); e.preventDefault(); }
+  });
+  document.addEventListener('keyup', function (e) {
+    if (phase !== 'play') return;
+    var h = keyMap[e.key]; if (h) { release(h.b, h.el); e.preventDefault(); }
+  });
+
+  /* ---------------------------- Messages from the big screen ---------------------------- */
+  function onMessage(m) {
+    if (m.t === 'bye') { goThanks(); return; }
+    if (m.t !== 'st') { return; }
+    screenState = m;
+    var mine = m.ctl === cid;
+
+    if (phase === 'play' && mine) {
+      if (m.s === 'playing') {
+        clearInterval(startTimer);
+        $('hScore').textContent = money(m.sc);
+        $('hLn').textContent = m.ln || '';
+        if (m.pad && m.pad !== padName) { releaseAllButtons(); buildPad(m.pad); }
+      }
+      if (m.s === 'end' && !endHandled) { endHandled = true; clearInterval(startTimer); releaseAllButtons(); showEnd(m); }
+    }
+    refreshConn();
+  }
+
+  /* ---------------------------- End and saving ---------------------------- */
+  var finalScore = 0, saveState = 'idle', retriedOnce = false;
+  function showEnd(m) {
+    finalScore = Math.max(0, Math.round(m.sc || 0));
+    $('endTitle').textContent = m.ttl || 'Game over';
+    $('endScore').textContent = money(finalScore);
+    $('endPerf').textContent = m.msg || '';
+    show('end');
+    releaseWake();
+    saveFinal();
+  }
+  function setSave(state, text) {
+    saveState = state;
+    var el = $('saveMsg');
+    el.textContent = text;
+    el.className = 'save ' + (state === 'ok' ? 'ok' : state === 'fail' ? 'fail' : '');
+    $('retryBtn').style.display = state === 'fail' ? 'block' : 'none';
+    $('newBtn').disabled = state === 'saving';
+  }
+  function saveFinal() {
+    if (!details) { setSave('fail', 'Your details are no longer on this phone, so the score could not be saved.'); return; }
+    setSave('saving', 'Saving your score...');
+    PBHubSpot.submit(details, { score: finalScore, label: 'end' }).then(function (r) {
+      if (r.ok) { setSave('ok', 'Your score and details are saved.'); return; }
+      if (!retriedOnce) { retriedOnce = true; setTimeout(saveFinal, SAVE_RETRY_AFTER_MS); setSave('saving', 'Trying again...'); return; }
+      setSave('fail', 'We could not save your score. Check your connection and try again.');
+    });
+  }
+  $('retryBtn').addEventListener('click', function () { retriedOnce = true; saveFinal(); });
+
+  /* ---------------------------- New game and thanks ---------------------------- */
+  $('newBtn').addEventListener('click', function () {
+    var n = 0;
+    function go() { if (link) link.send({ t: 'newgame', c: cid }); if (++n < 4) setTimeout(go, NEWGAME_RESEND_MS); }
+    go();
+    goThanks();
+  });
+  function goThanks() {
+    details = null;                       // clear for the next player
+    $('form').reset();
+    clearInterval(startTimer);
+    heldKeys = {};
+    releaseWake();
+    show('thanks');
+    $('chipText').textContent = 'Finished';
+    $('chip').className = 'chip';
+    // Let the repeated newgame messages go out, then stop listening to this room
+    setTimeout(function () { if (link) { link.close(); link = null; } }, 1600);
+  }
+
+  /* ---------------------------- Keep the screen awake while playing ---------------------------- */
+  function requestWake() { try { if (navigator.wakeLock) navigator.wakeLock.request('screen').then(function (l) { wakeLock = l; }, function () {}); } catch (e) {} }
+  function releaseWake() { try { if (wakeLock) { wakeLock.release(); wakeLock = null; } } catch (e) {} }
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible' && phase === 'play') requestWake(); });
+
+  /* ---------------------------- Go ---------------------------- */
+  if (!room) {
+    show('noroom');
+    $('chipText').textContent = 'No game';
+    $('chip').className = 'chip bad';
+  } else {
+    link = PBLink.connect({
+      role: 'controller',
+      room: room,
+      onMessage: onMessage,
+      onStatus: function (s) { linkStatus = s; refreshConn(); },
+      heartbeatExtra: function () { return { c: cid }; }
+    });
+    refreshConn();
+  }
+  window.addEventListener('pagehide', function () { details = null; });
+})();
+</script>
+</body>
+</html>
